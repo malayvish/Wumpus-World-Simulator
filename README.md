@@ -86,11 +86,11 @@ Since this is a simple, single-file project, there is no build step.
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/](https://github.com/)<YOUR_USERNAME>/<YOUR_REPO_NAME>.git
+    git clone [https://github.com/](https://github.com/)<malayvish>/<Wumpus-World-Simulator>.git
     ```
 2.  **Navigate to the directory:**
     ```sh
-    cd <YOUR_REPO_NAME>
+    cd <Wumpus-World-Simulator>
     ```
 3.  **Open the file:**
     Simply double-click the `index.html` file to open it in your favorite web browser.
