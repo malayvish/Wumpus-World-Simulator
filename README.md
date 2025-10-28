@@ -1,32 +1,10 @@
-
 # Wumpus World Simulator 👹
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2F<YOUR_USERNAME>%2F<YOUR_REPO_NAME>)
 
 A fully responsive, modern Wumpus World Simulator built with pure HTML, CSS, and JavaScript. This project is a single-file, dependency-free application perfect for deployment on platforms like Vercel.
 
 The Wumpus World is a classic example of a knowledge-based agent in AI. This simulator allows a human player to act as the agent, navigating a 4x4 grid to find gold while avoiding deadly pits and the fearsome Wumpus.
-
----
-
-## 🚀 Live Demo
-
-**Play the game live:** [**https://<YOUR_APP_NAME>.vercel.app/**](https://<YOUR_APP_NAME>.vercel.app/)
-
-*(Replace the link above after you deploy to Vercel!)*
-
----
-
-## 📸 Screenshots
-
-### Desktop View
-![Desktop Screenshot of Wumpus World Simulator](<path-to-your-desktop-screenshot.png>)
-
-### Mobile View
-![Mobile Screenshot of Wumpus World Simulator](<path-to-your-mobile-screenshot.png>)
-
-*(**Tip:** Take screenshots of your project and add them to your repository. Then, update the paths above.)*
 
 ---
 
@@ -86,11 +64,11 @@ Since this is a simple, single-file project, there is no build step.
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/](https://github.com/)<malayvish>/<Wumpus-World-Simulator>.git
+    git clone [https://github.com/malayvish/Wumpus-World-Simulator.git](https://github.com/malayvish/Wumpus-World-Simulator.git)
     ```
 2.  **Navigate to the directory:**
     ```sh
-    cd <Wumpus-World-Simulator>
+    cd Wumpus-World-Simulator
     ```
 3.  **Open the file:**
     Simply double-click the `index.html` file to open it in your favorite web browser.
