@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wumpus World Simulator</title>
+    <style>
+        /* --- Modern Dark/Neon Theme --- */
+        :root {
+            --grid-size: 4;
+            --cell-size: 110px; /* Default desktop cell size */
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            
+            /* Color Palette */
+            --color-bg-start: #1a1a2e;
+            --color-bg-end: #1f2840;
+            --color-panel: #1f2840;
+            --color-border: #3b3b58;
+            --color-text-light: #e0e0e0;
+            --color-text-medium: #a0a0c0;
+            --color-text-dark: #333;
+            --color-brand: #00d1ff;
+            --color-gold: #f1c40f;
+            --color-safe: #2ecc71;
+            --color-danger: #e74c3c;
+            --color-wumpus: #9b59b6;
+            --color-breeze: #3498db;
+            --color-grid-unvisited: #2a2a40;
+            --color-grid-visited: #3a3a5a;
+            
+            /* Glow Effects */
+            --glow-brand: rgba(0, 209, 255, 0.3);
+            --glow-gold: rgba(241, 196, 15, 0.4);
+            --glow-danger: rgba(231, 76, 60, 0.3);
+            --glow-safe: rgba(46, 204, 113, 0.3);
+            --glow-wumpus: rgba(155, 89, 182, 0.4);
+            --glow-breeze: rgba(52, 152, 219, 0.4);
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: linear-gradient(135deg, var(--color-bg-start) 0%, var(--color-bg-end) 100%);
+            color: var(--color-text-light);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Navbar --- */
+        #navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            background-color: var(--color-panel);
+            border-bottom: 2px solid var(--color-border);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            height: 60px;
+            width: 100%;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+        #navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--color-brand);
+            text-shadow: 0 0 10px var(--glow-brand);
+        }
+        #navbar-links {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            gap: 10px;
+        }
+        #navbar-links li a {
+            display: block;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: var(--color-text-medium);
+            font-weight: 500;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        #navbar-links li a:hover {
+            background-color: var(--color-border);
+            color: var(--color-text-light);
+        }
+        
+        .nav-icon, .nav-sound-icon {
+            display: none;
+        }
+
+        /* --- Game Container --- */
+        #game-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1100px;
+            margin: 30px auto;
+            width: 100%;
+            flex-grow: 1;
+            padding: 0 20px;
+            box-sizing: border-box;
+            justify-content: center;
+        }
+
+        /* --- Game Grid (Left) --- */
+        #grid-container {
+            width: calc(var(--cell-size) * var(--grid-size) + 6px);
+            flex-shrink: 0;
+        }
+
+        #wumpus-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-size), var(--cell-size));
+            grid-template-rows: repeat(var(--grid-size), var(--cell-size));
+            border: 3px solid var(--color-border);
+            position: relative;
+            background-color: var(--color-panel);
+            box-shadow: 0 0 20px var(--glow-brand);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .grid-cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: var(--color-grid-unvisited);
+            border: 1px solid var(--color-border);
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+        .grid-cell.visited {
+            background-color: var(--color-grid-visited);
+        }
+        .grid-cell::before {
+            content: attr(data-coords);
+            position: absolute;
+            bottom: 4px;
+            left: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--color-text-medium);
+            opacity: 0.5;
+        }
+
+        /* Agent */
+        .agent {
+            font-size: 3.5rem;
+            z-index: 10;
+            transition: transform 0.2s linear, color 0.2s, text-shadow 0.2s, font-size 0.2s;
+            visibility: hidden;
+            opacity: 0;
+            transform: scale(0.8);
+            color: var(--color-gold);
+            text-shadow: 0 0 15px var(--glow-gold);
+        }
+        .grid-cell.current .agent {
+            visibility: visible;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Cell Items */
+        .cell-content {
+            font-size: 3rem;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.5s, font-size 0.2s;
+            position: absolute;
+            text-shadow: 0 0 15px var(--glow-danger);
+        }
+        .cell-content.gold {
+            text-shadow: 0 0 15px var(--glow-gold);
+        }
+        .game-over .cell-content { visibility: visible; opacity: 0.5; }
+        .game-over .grid-cell.visited .cell-content { opacity: 1; }
+        .grid-cell.current .gold { visibility: visible; opacity: 1; }
+
+        /* --- UI Panel (Right) --- */
+        #ui-panel {
+            flex-grow: 1;
+            flex-basis: 300px;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .panel-box {
+            background-color: var(--color-panel);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: box-shadow 0.3s;
+        }
+        .panel-box:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .panel-box h3 {
+            margin: 0 0 15px 0;
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 10px;
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--color-brand);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Controls (Desktop) */
+        #controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+        #controls-grid button {
+            padding: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background-color: var(--color-breeze);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px var(--glow-breeze);
+        }
+        #controls-grid button:hover {
+            background-color: #4ea8e1;
+            transform: translateY(-2px);
+        }
+        #controls-grid button:active {
+            transform: scale(0.95);
+        }
+        #btn-move { grid-column: 2; }
+        #btn-left { grid-column: 1; }
+        #btn-right { grid-column: 3; }
+
+        #action-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        #action-controls button {
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #btn-shoot {
+            background-color: var(--color-danger);
+            box-shadow: 0 0 10px var(--glow-danger);
+        }
+        #btn-shoot:hover { background-color: #f85c4c; transform: translateY(-2px); }
+        #btn-grab {
+            background-color: var(--color-safe);
+            box-shadow: 0 0 10px var(--glow-safe);
+        }
+        #btn-grab:hover { background-color: #3fdc81; transform: translateY(-2px); }
+        
+        #btn-new-game {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background-color: var(--color-gold);
+            color: var(--color-text-dark);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 15px;
+            box-shadow: 0 0 10px var(--glow-gold);
+        }
+        #btn-new-game:hover { background-color: #f3d02f; transform: translateY(-2px); }
+        #btn-new-game:active { transform: scale(0.98); }
+
+        /* Percepts & Status */
+        #percept-list, #status-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        #percept-list li, #status-list li {
+            font-size: 1rem;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: var(--color-grid-unvisited);
+            color: var(--color-text-medium);
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid var(--color-border);
+            transition: all 0.3s;
+        }
+        
+        #percept-list li.active {
+            font-weight: bold;
+            transform: scale(1.05);
+            color: white;
+        }
+        #percept-stench.active { background-color: var(--color-wumpus); box-shadow: 0 0 10px var(--glow-wumpus); }
+        #percept-breeze.active { background-color: var(--color-breeze); box-shadow: 0 0 10px var(--glow-breeze); }
+        #percept-glitter.active { background-color: var(--color-gold); color: var(--color-text-dark); box-shadow: 0 0 10px var(--glow-gold); }
+        #percept-bump.active { background-color: var(--color-danger); box-shadow: 0 0 10px var(--glow-danger); }
+        #percept-scream.active { background-color: #e67e22; box-shadow: 0 0 10px #e67e22; }
+
+        #status-arrow.active { background-color: #7f8c8d; color: white; }
+        #status-gold.active { background-color: var(--color-gold); color: var(--color-text-dark); box-shadow: 0 0 10px var(--glow-gold); }
+
+        /* Game Log / Status */
+        #game-status-message {
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            line-height: 1.4;
+            transition: all 0.3s;
+        }
+        #game-status-message.win {
+            color: var(--color-safe);
+            border: 2px solid var(--color-safe);
+            background-color: rgba(46, 204, 113, 0.1);
+            box-shadow: 0 0 10px var(--glow-safe);
+        }
+        #game-status-message.lose {
+            color: var(--color-danger);
+            border: 2px solid var(--color-danger);
+            background-color: rgba(231, 76, 60, 0.1);
+            box-shadow: 0 0 10px var(--glow-danger);
+        }
+        #game-status-message.play {
+            color: var(--color-text-medium);
+            border: 2px solid var(--color-border);
+            background-color: var(--color-grid-unvisited);
+        }
+
+        #score-display {
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-align: center;
+            color: var(--color-text-light);
+            margin-top: 15px;
+        }
+
+        /* --- Modal Styles --- */
+        #modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #modal-content {
+            background: var(--color-panel);
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--color-border);
+        }
+        #modal-close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 2.5rem;
+            color: var(--color-text-medium);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        #modal-close:hover { color: var(--color-text-light); }
+        #modal-title {
+            margin-top: 0;
+            color: var(--color-brand);
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 10px;
+        }
+        #modal-body {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: var(--color-text-light);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        #modal-body kbd {
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: bold;
+            background-color: var(--color-grid-unvisited);
+            border: 1px solid var(--color-border);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: var(--color-text-light);
+        }
+        #modal-body ul { margin-left: 20px; padding-left: 10px; }
+        #modal-body hr { border: none; border-top: 1px solid var(--color-border); }
+        
+        /* ========================================
+        --- NEW: MOBILE STICKY CONTROLS BAR ---
+        ========================================
+        */
+        #mobile-controls {
+            display: none; /* Hidden on desktop */
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+            background-color: var(--color-panel);
+            border-top: 2px solid var(--color-border);
+            padding: 15px;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
+        }
+        #controls-grid-mobile {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+        #controls-grid-mobile button {
+            padding: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background-color: var(--color-breeze);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--glow-breeze);
+        }
+        #controls-grid-mobile button:active { transform: scale(0.95); }
+        #btn-move-mobile { grid-column: 2; }
+        #btn-left-mobile { grid-column: 1; }
+        #btn-right-mobile { grid-column: 3; }
+
+        #action-controls-mobile {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        #action-controls-mobile button {
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #btn-shoot-mobile {
+            background-color: var(--color-danger);
+            box-shadow: 0 0 10px var(--glow-danger);
+        }
+        #btn-grab-mobile {
+            background-color: var(--color-safe);
+            box-shadow: 0 0 10px var(--glow-safe);
+        }
+        
+        /*
+        ========================================
+        --- RESPONSIVE DESIGN MEDIA QUERIES ---
+        ========================================
+        */
+
+        /* Tablet & Surface Pro (Portrait/Snapped) */
+        @media (max-width: 900px) {
+            #game-container {
+                flex-direction: column;
+                align-items: center;
+                max-width: 100%;
+                padding: 20px;
+                margin-top: 20px;
+                /* Add padding to bottom to prevent sticky bar from overlapping last panel */
+                padding-bottom: 170px;
+            }
+
+            #ui-panel {
+                width: 100%;
+                max-width: calc(var(--cell-size) * var(--grid-size) + 6px); 
+                flex-basis: auto;
+            }
+            
+            /* --- NEW: Swap Controls --- */
+            #controls-panel-box {
+                display: none; /* Hide the desktop controls panel */
+            }
+            #mobile-controls {
+                display: block; /* Show the sticky mobile controls */
+            }
+        }
+
+        /* Mobile Phones */
+        @media (max-width: 500px) {
+            :root {
+                --cell-size: 22vw; 
+            }
+            
+            body {
+                padding: 0;
+            }
+
+            #game-container {
+                padding: 10px;
+                gap: 20px;
+                margin-top: 15px;
+                padding-bottom: 160px; /* Adjust padding for smaller controls */
+            }
+            
+            #navbar { padding: 0 10px; }
+            #navbar-brand { font-size: 1.2rem; }
+            #navbar-links { gap: 5px; }
+            #navbar-links li a { padding: 8px 10px; }
+            
+            .nav-text { display: none; }
+            .nav-icon, .nav-sound-icon { display: inline; font-size: 1.2rem; }
+
+            .agent { font-size: 10vw; }
+            .cell-content { font-size: 9vw; }
+            .grid-cell::before { font-size: 3vw; bottom: 2px; left: 3px; }
+
+            #ui-panel { max-width: 100%; min-width: 100%; }
+
+            #modal-content {
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+                padding: 15px;
+                box-sizing: border-box;
+            }
+            #modal-close { top: 5px; right: 15px; }
+            
+            /* Adjust sticky controls for smaller screen */
+            #mobile-controls {
+                padding: 10px;
+            }
+            #action-controls-mobile {
+                margin-top: 10px;
+            }
+            #controls-grid-mobile button {
+                padding: 12px;
+                font-size: 1.3rem;
+            }
+        }
+        
+        /* Tweak for very small mobile (e.g., iPhone 5/SE) */
+        @media (max-width: 360px) {
+            :root {
+                --cell-size: 21vw;
+            }
+            #navbar-links li a { padding: 8px; }
+            #navbar-brand { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav id="navbar">
+        <div id="navbar-brand">Wumpus World</div>
+        <ul id="navbar-links">
+            <li><a href="#" id="nav-new-game"><span class="nav-text">New Game</span><span class="nav-icon">🎮</span></a></li>
+            <li><a href="#" id="nav-how-to-play"><span class="nav-text">How to Play</span><span class="nav-icon">❓</span></a></li>
+            <li><a href="#" id="nav-about"><span class="nav-text">About</span><span class="nav-icon">ℹ️</span></a></li>
+            <li><a href="#" id="nav-toggle-sound"><span class="nav-text">Toggle Sound </span><span class="nav-sound-icon">🔈</span></a></li>
+        </ul>
+    </nav>
+
+    <div id="game-container">
+        <div id="grid-container">
+            <div id="wumpus-grid"></div>
+        </div>
+        <div id="ui-panel">
+            <div class="panel-box">
+                <div id="game-status-message" class="play">Game in progress...</div>
+                <div id="score-display">Score: 0</div>
+            </div>
+            <div class="panel-box">
+                <h3>Percepts</h3>
+                <ul id="percept-list">
+                    <li id="percept-stench">🤢 Stench</li>
+                    <li id="percept-breeze">💨 Breeze</li>
+                    <li id="percept-glitter">✨ Glitter</li>
+                    <li id="percept-bump">💥 Bump</li>
+                    <li id="percept-scream">😱 Scream</li>
+                </ul>
+            </div>
+            <div class="panel-box">
+                <h3>Agent Status</h3>
+                <ul id="status-list">
+                    <li id="status-arrow">🏹 Arrow: 1</li>
+                    <li id="status-gold">💰 Gold: No</li>
+                </ul>
+            </div>
+            <div class="panel-box" id="controls-panel-box">
+                <h3>Controls</h3>
+                <div id="controls-grid">
+                    <button id="btn-left" title="Turn Left (A)">⬅️</button>
+                    <button id="btn-move" title="Move Forward (W)">⬆️</button>
+                    <button id="btn-right" title="Turn Right (D)">➡️</button>
+                </div>
+                <div id="action-controls">
+                    <button id="btn-shoot" title="Shoot Arrow (F)">Shoot</button>
+                    <button id="btn-grab" title="Grab Gold (G)">Grab</button>
+                </div>
+                <button id="btn-new-game" title="Restart Game">New Game</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-overlay">
+        <div id="modal-content">
+            <span id="modal-close">&times;</span>
+            <h2 id="modal-title"></h2>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="mobile-controls">
+        <div id="controls-grid-mobile">
+            <button id="btn-left-mobile" title="Turn Left (A)">⬅️</button>
+            <button id="btn-move-mobile" title="Move Forward (W)">⬆️</button>
+            <button id="btn-right-mobile" title="Turn Right (D)">➡️</button>
+        </div>
+        <div id="action-controls-mobile">
+            <button id="btn-shoot-mobile" title="Shoot Arrow (F)">Shoot</button>
+            <button id="btn-grab-mobile" title="Grab Gold (G)">Grab</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- DOM Elements ---
+            const grid = document.getElementById('wumpus-grid');
+            const scoreDisplay = document.getElementById('score-display');
+            const gameStatusMessage = document.getElementById('game-status-message');
+            
+            // Percepts
+            const perceptStench = document.getElementById('percept-stench');
+            const perceptBreeze = document.getElementById('percept-breeze');
+            const perceptGlitter = document.getElementById('percept-glitter');
+            const perceptBump = document.getElementById('percept-bump');
+            const perceptScream = document.getElementById('percept-scream');
+            const allPercepts = [perceptStench, perceptBreeze, perceptGlitter, perceptBump, perceptScream];
+
+            // Status
+            const statusArrow = document.getElementById('status-arrow');
+            const statusGold = document.getElementById('status-gold');
+            
+            // --- Buttons ---
+            // Desktop
+            const btnLeft = document.getElementById('btn-left');
+            const btnRight = document.getElementById('btn-right');
+            const btnMove = document.getElementById('btn-move');
+            const btnShoot = document.getElementById('btn-shoot');
+            const btnGrab = document.getElementById('btn-grab');
+            const btnNewGame = document.getElementById('btn-new-game'); 
+            
+            // NEW: Mobile
+            const btnLeftMobile = document.getElementById('btn-left-mobile');
+            const btnRightMobile = document.getElementById('btn-right-mobile');
+            const btnMoveMobile = document.getElementById('btn-move-mobile');
+            const btnShootMobile = document.getElementById('btn-shoot-mobile');
+            const btnGrabMobile = document.getElementById('btn-grab-mobile');
+
+            // --- Navbar & Modal Elements ---
+            const navNewGame = document.getElementById('nav-new-game');
+            const navHowToPlay = document.getElementById('nav-how-to-play');
+            const navAbout = document.getElementById('nav-about');
+            const navToggleSound = document.getElementById('nav-toggle-sound');
+            const navSoundIcon = document.querySelector('.nav-sound-icon');
+            const modalOverlay = document.getElementById('modal-overlay');
+            const modalContent = document.getElementById('modal-content');
+            const modalClose = document.getElementById('modal-close');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            // --- Game State Variables ---
+            const GRID_SIZE = 4;
+            let world = [];
+            let agent = { x: 0, y: 0, dir: 'right', hasArrow: true, hasGold: false };
+            let wumpusPos = { x: -1, y: -1 };
+            let goldPos = { x: -1, y: -1 };
+            let pitPos = [];
+            let wumpusAlive = true;
+            let score = 0;
+            let gameOver = true;
+            let soundEnabled = true; 
+            let audioCtx;
+
+            // --- Audio Functions ---
+            function initAudio() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            
+            function playTone(freq, duration, type, volume = 0.1) {
+                if (!audioCtx || !soundEnabled) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + duration);
+                } catch (e) {
+                    console.error("Audio playback error:", e);
+                }
+            }
+
+            const sounds = {
+                turn: () => playTone(300, 0.1, 'sawtooth'),
+                move: () => playTone(150, 0.1, 'square'),
+                bump: () => { playTone(100, 0.15, 'square', 0.2); perceptBump.classList.add('active'); },
+                shoot: () => playTone(1000, 0.3, 'triangle'),
+                scream: () => { playTone(1200, 0.5, 'sawtooth', 0.2); perceptScream.classList.add('active'); },
+                death: () => playTone(200, 0.8, 'square', 0.2),
+                win: () => {
+                    playTone(523, 0.1, 'sine');
+                    setTimeout(() => playTone(659, 0.1, 'sine'), 100);
+                    setTimeout(() => playTone(784, 0.1, 'sine'), 200);
+                    setTimeout(() => playTone(1046, 0.2, 'sine'), 300);
+                },
+                breeze: () => { playTone(1500, 0.4, 'sine', 0.05); perceptBreeze.classList.add('active'); },
+                stench: () => { playTone(100, 0.4, 'square', 0.05); perceptStench.classList.add('active'); },
+                glitter: () => { playTone(2000, 0.15, 'triangle', 0.15); perceptGlitter.classList.add('active'); },
+                grab: () => playTone(1500, 0.1, 'sine')
+            };
+
+            // --- Game Logic (No changes here) ---
+
+            function initializeGame() {
+                initAudio();
+                agent = { x: 0, y: 0, dir: 'right', hasArrow: true, hasGold: false };
+                wumpusAlive = true;
+                score = 0;
+                gameOver = false;
+                pitPos = [];
+                world = [];
+                grid.classList.remove('game-over');
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    world[y] = [];
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        world[y][x] = { pit: false, wumpus: false, gold: false, visited: false };
+                    }
+                }
+                placeItem('pit', 3);
+                wumpusPos = placeItem('wumpus', 1)[0];
+                goldPos = placeItem('gold', 1)[0];
+                function placeItem(item, count) {
+                    let placed = 0, positions = [];
+                    while (placed < count) {
+                        const x = Math.floor(Math.random() * GRID_SIZE);
+                        const y = Math.floor(Math.random() * GRID_SIZE);
+                        if ((x !== 0 || y !== 0) && !world[y][x].pit && !world[y][x].wumpus && !world[y][x].gold) {
+                            world[y][x][item] = true;
+                            if (item === 'pit') pitPos.push({ x, y });
+                            positions.push({ x, y });
+                            placed++;
+                        }
+                    }
+                    return positions;
+                }
+                world[0][0].visited = true;
+                createVisualGrid();
+                updateUI();
+                checkSensors();
+                updateScore(0);
+                updateGameStatus('play', 'Game in progress. Good luck!');
+            }
+
+            function createVisualGrid() {
+                grid.innerHTML = '';
+                for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        cell.id = `cell-${x}-${y}`;
+                        cell.dataset.coords = `[${x + 1}, ${y + 1}]`;
+                        let content = '';
+                        if (world[y][x].wumpus) content += '<span class="cell-content wumpus">👹</span>';
+                        if (world[y][x].pit) content += '<span class="cell-content pit">🕳️</span>';
+                        if (world[y][x].gold) content += '<span class="cell-content gold">💰</span>';
+                        content += `<span class="agent"></span>`;
+                        cell.innerHTML = content;
+                        grid.appendChild(cell);
+                    }
+                }
+            }
+
+            function updateUI() {
+                if (!world.length) return;
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        const cell = document.getElementById(`cell-${x}-${y}`);
+                        if (!cell) continue;
+                        cell.classList.remove('current');
+                        if (world[y][x].visited) cell.classList.add('visited');
+                        const agentSpan = cell.querySelector('.agent');
+                        if (x === agent.x && y === agent.y) {
+                            cell.classList.add('current');
+                            let agentChar = '';
+                            switch (agent.dir) {
+                                case 'right': agentChar = '►'; break;
+                                case 'up': agentChar = '▲'; break;
+                                case 'left': agentChar = '◄'; break;
+                                case 'down': agentChar = '▼'; break;
+                            }
+                            agentSpan.textContent = agentChar;
+                        } else {
+                            agentSpan.textContent = '';
+                        }
+                    }
+                }
+                statusArrow.textContent = `🏹 Arrow: ${agent.hasArrow ? 1 : 0}`;
+                statusArrow.classList.toggle('active', agent.hasArrow);
+                statusGold.textContent = `💰 Gold: ${agent.hasGold ? 'Yes' : 'No'}`;
+                statusGold.classList.toggle('active', agent.hasGold);
+            }
+
+            function updateScore(change) {
+                if (gameOver) return;
+                score += change;
+                scoreDisplay.textContent = `Score: ${score}`;
+            }
+
+            function clearPercepts() {
+                allPercepts.forEach(p => p.classList.remove('active'));
+            }
+
+            function checkSensors() {
+                if (gameOver) return;
+                clearPercepts();
+                const { x, y } = agent;
+                let playedSounds = new Set();
+                if (world[y][x].gold) {
+                    if (!playedSounds.has('glitter')) { sounds.glitter(); playedSounds.add('glitter'); }
+                }
+                const neighbors = [[x, y + 1], [x, y - 1], [x - 1, y], [x + 1, y]];
+                for (const [nx, ny] of neighbors) {
+                    if (isValid(nx, ny)) {
+                        if (world[ny][nx].pit) {
+                            if (!playedSounds.has('breeze')) { sounds.breeze(); playedSounds.add('breeze'); }
+                        }
+                        if (world[ny][nx].wumpus && wumpusAlive) {
+                            if (!playedSounds.has('stench')) { sounds.stench(); playedSounds.add('stench'); }
+                        }
+                    }
+                }
+            }
+
+            function checkGameState() {
+                const { x, y } = agent;
+                if (agent.hasGold && x === 0 && y === 0) {
+                    updateScore(1000);
+                    endGame('win', 'You escaped with the gold! 🎉');
+                    sounds.win();
+                    return;
+                }
+                if (world[y][x].wumpus && wumpusAlive) {
+                    updateScore(-1000);
+                    endGame('lose', 'You were eaten by the Wumpus! 👹');
+                    sounds.death();
+                    return;
+                }
+                if (world[y][x].pit) {
+                    updateScore(-1000);
+                    endGame('lose', 'You fell into a pit! 🕳️');
+                    sounds.death();
+                    return;
+                }
+            }
+            
+            function updateGameStatus(type, message) {
+                gameStatusMessage.textContent = message;
+                gameStatusMessage.className = '';
+                gameStatusMessage.classList.add(type);
+            }
+
+            function endGame(type, message) {
+                gameOver = true;
+                grid.classList.add('game-over');
+                updateGameStatus(type, message);
+                scoreDisplay.textContent = `Final Score: ${score}`;
+            }
+
+            function isValid(x, y) {
+                return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+            }
+
+            // --- Actuator Functions (No changes here) ---
+
+            function turnLeft() {
+                if (gameOver) return;
+                sounds.turn();
+                switch (agent.dir) {
+                    case 'right': agent.dir = 'up'; break;
+                    case 'up': agent.dir = 'left'; break;
+                    case 'left': agent.dir = 'down'; break;
+                    case 'down': agent.dir = 'right'; break;
+                }
+                updateScore(-1); updateUI(); clearPercepts();
+            }
+
+            function turnRight() {
+                if (gameOver) return;
+                sounds.turn();
+                switch (agent.dir) {
+                    case 'right': agent.dir = 'down'; break;
+                    case 'down': agent.dir = 'left'; break;
+                    case 'left': agent.dir = 'up'; break;
+                    case 'up': agent.dir = 'right'; break;
+                }
+                updateScore(-1); updateUI(); clearPercepts();
+            }
+
+            function moveForward() {
+                if (gameOver) return;
+                updateScore(-1);
+                let newX = agent.x, newY = agent.y;
+                switch (agent.dir) {
+                    case 'right': newX++; break;
+                    case 'up': newY++; break;
+                    case 'left': newX--; break;
+                    case 'down': newY--; break;
+                }
+                if (!isValid(newX, newY)) {
+                    sounds.bump(); return;
+                }
+                sounds.move();
+                agent.x = newX; agent.y = newY;
+                world[newY][newX].visited = true;
+                updateUI();
+                checkGameState();
+                if (!gameOver) checkSensors();
+            }
+
+            function grab() {
+                if (gameOver) return;
+                updateScore(-1);
+                if (world[agent.y][agent.x].gold) {
+                    agent.hasGold = true;
+                    world[agent.y][agent.x].gold = false;
+                    sounds.grab();
+                    const cell = document.getElementById(`cell-${agent.x}-${agent.y}`);
+                    const goldSpan = cell.querySelector('.cell-content.gold');
+                    if (goldSpan) goldSpan.style.visibility = 'hidden';
+                    updateUI();
+                    checkSensors();
+                }
+            }
+
+            function shoot() {
+                if (gameOver || !agent.hasArrow) return;
+                sounds.shoot();
+                updateScore(-10);
+                agent.hasArrow = false;
+                let hit = false;
+                if (agent.dir === 'right' && agent.y === wumpusPos.y && agent.x < wumpusPos.x) hit = true;
+                else if (agent.dir === 'left' && agent.y === wumpusPos.y && agent.x > wumpusPos.x) hit = true;
+                else if (agent.dir === 'up' && agent.x === wumpusPos.x && agent.y < wumpusPos.y) hit = true;
+                else if (agent.dir === 'down' && agent.x === wumpusPos.x && agent.y > wumpusPos.y) hit = true;
+                if (hit && wumpusAlive) {
+                    wumpusAlive = false;
+                    sounds.scream();
+                    world[wumpusPos.y][wumpusPos.x].wumpus = false;
+                    const wumpusCell = document.getElementById(`cell-${wumpusPos.x}-${wumpusPos.y}`);
+                    const wumpusSpan = wumpusCell.querySelector('.cell-content.wumpus');
+                    if (wumpusSpan) wumpusSpan.textContent = '💀';
+                    setTimeout(checkSensors, 100);
+                }
+                updateUI();
+            }
+
+            // --- Modal Functions ---
+            
+            function openModal(title, contentHTML) {
+                modalTitle.textContent = title;
+                modalBody.innerHTML = contentHTML;
+                modalOverlay.style.display = 'flex';
+            }
+
+            function closeModal() {
+                modalOverlay.style.display = 'none';
+            }
+
+            function toggleSound() {
+                soundEnabled = !soundEnabled;
+                const icon = soundEnabled ? '🔈' : '🔇';
+                navSoundIcon.textContent = icon;
+                navToggleSound.querySelector('.nav-text').textContent = soundEnabled ? 'Toggle Sound ' : 'Toggle Sound ';
+            }
+
+            // --- Event Listeners ---
+            
+            // --- NEW: Attach listeners to BOTH sets of controls ---
+            
+            // Desktop Controls
+            btnLeft.addEventListener('click', () => { initAudio(); turnLeft(); });
+            btnRight.addEventListener('click', () => { initAudio(); turnRight(); });
+            btnMove.addEventListener('click', () => { initAudio(); moveForward(); });
+            btnShoot.addEventListener('click', () => { initAudio(); shoot(); });
+            btnGrab.addEventListener('click', () => { initAudio(); grab(); });
+            btnNewGame.addEventListener('click', initializeGame);
+            
+            // Mobile Controls
+            btnLeftMobile.addEventListener('click', () => { initAudio(); turnLeft(); });
+            btnRightMobile.addEventListener('click', () => { initAudio(); turnRight(); });
+            btnMoveMobile.addEventListener('click', () => { initAudio(); moveForward(); });
+            btnShootMobile.addEventListener('click', () => { initAudio(); shoot(); });
+            btnGrabMobile.addEventListener('click', () => { initAudio(); grab(); });
+
+            
+            // Keyboard
+            window.addEventListener('keydown', (e) => {
+                initAudio();
+                if (modalOverlay.style.display === 'flex') {
+                    if (e.key === 'Escape') closeModal();
+                    return;
+                }
+                if (gameOver) {
+                    if (e.key === 'Enter') initializeGame();
+                    return;
+                }
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+                switch (e.key) {
+                    case 'ArrowLeft': case 'a': turnLeft(); break;
+                    case 'ArrowRight': case 'd': turnRight(); break;
+                    case 'ArrowUp': case 'w': moveForward(); break;
+                    case 'f': shoot(); break;
+                    case 'g': case ' ': grab(); break;
+                    case 'Escape': closeModal(); break;
+                }
+            });
+
+            // --- Navbar & Modal Listeners ---
+            
+            navNewGame.addEventListener('click', (e) => { e.preventDefault(); initializeGame(); });
+            navToggleSound.addEventListener('click', (e) => { e.preventDefault(); initAudio(); toggleSound(); });
+            
+            navHowToPlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                const content = `
+                    <p><strong>Goal:</strong> Find the gold (💰) and return to the starting cell [1,1] to escape.</p>
+                    <hr>
+                    <h3>Controls</h3>
+                    <ul style="list-style: none; padding: 0; font-size: 1rem; line-height: 1.8;">
+                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px;">Move Forward: <kbd>W</kbd> or <kbd>↑</kbd></li>
+                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px;">Turn Left: <kbd>A</kbd> or <kbd>←</kbd></li>
+                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px;">Turn Right: <kbd>D</kbd> or <kbd>→</kbd></li>
+                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px;">Shoot Arrow: <kbd>F</kbd></li>
+                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px;">Grab Gold: <kbd>G</kbd></li>
+                    </ul>
+                    <hr>
+                    <h3>Hazards & Percepts</h3>
+                    <ul>
+                        <li><strong>Wumpus (👹):</strong> Entering its room is death. Adjacent rooms have a <strong>Stench (🤢)</strong>. You can kill it with your one arrow, which causes a <strong>Scream (😱)</strong>.</li>
+                        <li><strong>Pit (🕳️):</strong> Entering a pit is death. Adjacent rooms have a <strong>Breeze (💨)</strong>.</li>
+                        <li><strong>Gold (💰):</strong> The room with the gold has a <strong>Glitter (✨)</strong>.</li>
+                    </ul>
+                `;
+                openModal('How to Play', content);
+            });
+
+            navAbout.addEventListener('click', (e) => {
+                e.preventDefault();
+                const content = `
+                    <p>The <strong>Wumpus World</strong> is a classic example of a knowledge-based agent in AI. It involves reasoning, knowledge representation, and planning.</p>
+                    <p>The agent uses its knowledge of the world to make decisions and navigate safely in the given 4x4 grid environment, avoiding pits and the Wumpus to retrieve the treasure.</p>
+                    <hr>
+                    <h3>PEAS Description</h3>
+                    <ul>
+                        <li><strong>Performance:</strong> +1000 for gold, -1000 for death, -1 per move, -10 for arrow.</li>
+                        <li><strong>Environment:</strong> A 4x4 grid of 16 rooms with randomly placed Pits, a Wumpus, and Gold.</li>
+                        <li><strong>Actuators:</strong> Move, Turn Left, Turn Right, Shoot, Grab.</li>
+                        <li><strong>Sensors:</strong> Stench, Breeze, Glitter, Bump (hitting a wall), Scream (Wumpus killed).</li>
+                    </ul>
+                `;
+                openModal('About Wumpus World', content);
+            });
+
+            // Modal Closing
+            modalClose.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+
+            // Start the game on load
+            initializeGame();
+        });
+    </script>
+</body>
+</html>
